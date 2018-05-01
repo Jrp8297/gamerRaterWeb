@@ -1,0 +1,12 @@
+{
+  "name": "oauth-example",
+  "version": "1.0.0",
+  "description": "A steam Server Dudeman",
+  "main": "./src/server.js",
+  "scripts": {
+    "start": "node ./src/server.js",
+    "test": "echo \"No Tests\""
+  },
+  "author": "Joel Petritsch",
+  "license": "ISC"
+}

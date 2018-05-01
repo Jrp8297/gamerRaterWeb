@@ -1,0 +1,502 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><!--import needed outside librarys (Jquery) -->
+	<meta charset="utf-8" />
+    <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Titillium+Web" rel="stylesheet">
+	<title>Gamer Rater Fringer Ginger that rates your Gamer Score</title>
+	<style>
+       @font-face{
+            font-family: 'Deutsch';
+            src: url(Deutsch-webfont.ttf);
+        }
+        @font-face{
+            font-family: 'HansaGotisch';
+            src: url(HansaGotisch.ttf);
+        }
+        @font-face{
+            font-family: 'BitGothic';
+            src: url(bitmgothic.medium.ttf);
+        }
+        @font-face{
+            font-family: 'BitSerif';
+            src: url(serif-pixel-7.regular.ttf);
+        }
+        @font-face{
+            font-family: 'Lansbury';
+            src: lansbury-fg.regular.ttf;
+        }
+        body {
+            background: #0B1C2E;
+            margin: 0;
+            color: #aab;
+        }
+        canvas {
+            margin: auto;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            background: #0B1C2E;
+            display: block;
+            color: #556;
+            border-color: #556;
+            border-width: 1px;
+            border-style: solid;
+            box-shadow: 5px 5px 8px #112 inset;
+        }        
+        h1{
+            font-size: 80pt;
+            margin-top: 10px;
+            padding: 0;
+            margin-bottom: 0px;
+            color: #ac3232;
+            font-weight: normal;
+        } 
+        h3{
+            font-size: 50pt;
+            margin-bottom: 0px;
+            padding-bottom: 0px;
+            font-weight: normal;
+        } 
+        hr{
+            clear:both;
+        }
+        button {
+                box-shadow: none;
+                border-radius: none;
+                border: none;
+                padding: 10px;
+                height: 50px;
+                background: #556;
+                margin: auto;
+                display: inline;                
+                font-size: 10pt;
+                color: #eef
+        }
+        footer{
+            margin-left:10%;
+            margin-right:10%;
+            color: #556;
+            background: #bbc;
+            text-align: center;
+            font-family: 'Titillium Web', sans-serif;
+            border-color: #556;
+            border-width: 3px;
+            border-style: solid;
+            font-size: 10pt;
+            clear: both;
+            box-shadow: 5px 5px 8px #112 inset;
+            text-shadow: 1px 1px 1px #112, -1px -1px 1px #eef;
+        }
+        header{
+            margin-left:10%;
+            margin-right:10%;
+            padding: 10px;            
+            color: #556;
+            background: #bbc;
+            text-align: center;
+            font-family: 'Titillium Web', sans-serif;
+            border-color: #556;
+            border-width: 3px;
+            border-style: solid;
+            font-size: 30pt;
+            clear: both;
+            box-shadow: 5px 5px 8px #112 inset;
+            text-shadow: 1px 1px 1px #112, -1px -1px 1px #eef;
+        }
+        img{            
+            display:none;
+        }
+        p{
+            font-size: 30pt;
+        }      
+        #input{
+          text-align: center;
+        }
+        #dumpdata{
+            text-align: center;
+            font-size: 30pt;
+            font-family: 'lato', sans-serif;
+        }       
+        
+        .hidden{
+            display: none;
+        }
+        .sixty{
+            width: 60%;
+            display:block;
+            margin:auto;
+        }
+        
+	</style>
+	<script>
+    // PROGRAMMED BY Joel Petritsch
+        "use strict";
+        window.onload = function(){	
+            app.main.init();
+        }
+
+        var app = app || {};
+
+		app.main = {                
+            UserID: null,
+            searchSection: null,  
+            startingRot:0,
+            gameArray : [],
+            idling: true,
+            canvas: undefined,
+            ctx: undefined, 
+            lastTime: 0,
+            currentTime:0,
+            dt: 0,
+            animationID:0,
+            totalGames: 0,
+            totalTime : 0,
+            gamerScore:0,
+            init: function(){
+                this.canvas = document.querySelector('canvas');
+                this.ctx = this.canvas.getContext("2d");           
+                document.querySelector('#fetch').onclick = function(){                     
+                    app.main.getData(); 
+                    //app.main.CreateTestData();
+                };                
+                document.querySelector('#search').oninput = function(e){
+                    app.main.UserID= this.value;                  
+                    app.main.searchSection = "&steamid=" +  app.main.UserID + "&format=json";
+                };      
+                window.addEventListener("keydown",function(e){//make the visualization rotate with player input
+                    var char = String.fromCharCode(e.keyCode);
+                    if (e.keyCode == 37){
+                        app.main.startingRot += app.main.dt*2;
+                    }
+                    if (e.keyCode == 39){
+                        app.main.startingRot -= app.main.dt*2;
+                    }
+                   
+                    });
+                   
+            },      
+            getData: function(){// get the data from STEAM API 
+                app.main.gameArray = [];
+                app.main. idling = true;
+                var baseId = "http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key="
+                var key="7F7C30813493BD6B4E2F58A50BDE4855"
+                var value;
+                var searchSection = app.main.searchSection
+                
+                var url = baseId+key+searchSection;
+                
+                var data = "";
+                if(searchSection.length != 38) {
+                     $("#dumpdata").text("Improper Steam Id Input. \nCheck the spelling, or that the Profile is profile is public");
+                }
+                else{//do the serach, if we have proper data
+                    app.main.Update();
+                    $.ajax({
+                        cache: false, // don't cache, so we can send multiple requests
+                        type: "get", // get data from server
+                        url: "/search" + searchSection, // this is where to send the request.
+                        data: data, // this is where to feed in the data
+                        dataType: "json",
+                        success: function(result, status, xhr){    
+                            //console.log("Success");
+                            var resultText = JSON.stringify(result);
+                            app.main.ProcessData(resultText);                            
+                            app.main.idling = false;
+                        },
+                        error: function (error, status, xhr) {
+                            //console.log("failure!")
+                            //convert to string we can see on screen
+                            var resultText = JSON.stringify(error);
+                            //add the raw json object to the screen for us to see.
+                            $("#dumpdata").text("Improper Steam Id Input. \nCheck the spelling, or that the Profile is profile is public");
+                        }
+                    });
+                }
+               
+            },            
+            CreateTestData : function(){
+                app.main.gameArray.splice(0, app.main.gameArray.length);                
+                for(var i=0; i<10; i++){
+                    var Game = {name:i, TimePlayed: i*20, CompletedAcheivements: 10-i, OutofAcheivements: 10+i }; 
+                    app.main.totalTime += i*22;
+                    app.main.gameArray.push(Game);
+                }
+                app.main.idling = false;                
+                app.main.Update();
+                app.main.calculateScore();
+                
+            },            
+            ProcessData: function(incData){		      
+                var totalGames = incData.split(";");
+                app.main.totalGames = totalGames[0].split(":")[1];
+                if(totalGames.length == 1){
+                     document.getElementById("dumpdata").innerHTML ="There is no Steam user that matches that ID. Please try again.";
+                    return;
+                }
+                app.main.totalTime = totalGames[1].split(":")[1];
+                for(var i =2; i< 22 && i < totalGames.length-1; i++){//go through all the games, add them to the list of objects.
+                    var internalData = totalGames[i].split(",");
+                    var title = internalData[0].split("\\")[9];                   
+                    var myTime = internalData[1].split(":")[1].trim();                    
+                    var totalAchievements = internalData[2].split(":")[1].trim();                    
+                    var temp = internalData[3].split(":")[1].trim();
+                    var achievedAchievements = temp.split("}")[0];
+                    var Game = {name:title, TimePlayed: myTime, CompletedAcheivements: achievedAchievements, OutofAcheivements:totalAchievements }; 
+                    app.main.gameArray.push(Game);                    
+                }
+                app.main.calculateScore();
+            },            
+            DisplayIdle: function(){//Displays a Loading Icon or sorts                
+                var ctx = app.main.ctx;  
+                ctx.beginPath();
+                ctx.rect(0,0,800,800);
+                ctx.fillStyle = "#0B1C2E";
+                ctx.fill();
+                
+                ctx.save();
+                ctx.strokeStyle = "#ffffff";
+                ctx.translate(400,400);
+                ctx.rotate(app.main.currentTime*3);
+                ctx.beginPath();
+                ctx.arc(0,0,250,0,.5*Math.PI);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.lineWidth =3;
+                ctx.arc(0,0,250,.5*Math.PI, 1*Math.PI);
+                ctx.stroke();
+                ctx.restore();
+                
+            },            
+            DisplayData: function(){//Display The actual Player Data    
+               
+                var colors =["#305D7A", "#5B6F4A", "#F8FFFF","#A9744A"]
+                var ctx = app.main.ctx;  
+                
+                ctx.rect(0,0,1200,800);       
+                ctx.fillStyle = "#0B1C2E";
+                ctx.fill();//Clear the board
+                
+                ctx.save()
+                ctx.translate(400, 400);                
+                ctx.beginPath();
+                var GameArray = app.main.gameArray;
+                var MaxTime = app.main.totalTime;
+                var PercentComplete;
+                
+                var startPosition = app.main.startingRot;
+                var endPosition =0; 
+                for(var i=0; i<GameArray.length; i++){// Loop through every game, andthen actually display it.
+                    PercentComplete = GameArray[i].CompletedAcheivements / GameArray[i].OutofAcheivements;
+                    var movement = (GameArray[i].TimePlayed / MaxTime);//Gives percentage of total time, effectively.
+                    movement = movement *Math.PI*2;//Turn into percent radians.       
+                     
+                    
+                    if(movement.toString() == "NaN"){
+                       endPosition = startPosition;
+                    }
+                    else{
+                        endPosition = startPosition+movement;
+                       
+                    }
+                    ctx.font ="normal 16px Helvetica";                  
+                    ctx.save();
+                    //set drawing styles
+                    var styleString =colors[i%4];                                    
+                    ctx.strokeStyle =  styleString;
+                    ctx.fillStyle = styleString;
+
+                            
+                    ctx.beginPath();
+                    ctx.moveTo(0,0);
+                    ctx.arc(0,0,150 + 150*PercentComplete,startPosition,endPosition);                    
+                    ctx.fill();
+                    ctx.rotate(startPosition);
+                    ctx.moveTo(0,0);
+                    ctx.lineTo(300,0);
+                    ctx.stroke();
+                    ctx.rotate((endPosition- startPosition) /2);
+                    
+                    
+                    ctx.save();//Draw Game Name
+                    ctx.translate(345,0);
+                     if(movement.toString() == "NaN"){
+                       
+                    }
+                    else{
+                    ctx.rotate(-(startPosition + endPosition)/2)
+                    }
+                    ctx.fillText(i+1, 0, 0);                   
+                    ctx.restore();
+                    
+                    ctx.save();//Draw Achievement Percentages
+                    if(GameArray[i].OutofAcheivements == 0){//prevent error calls
+                    }
+                    else{
+                    ctx.translate(200+ 100*PercentComplete,0);
+                    var styleString =colors[(i+2)%4];
+                    ctx.fillStyle =  styleString;
+                    ctx.rotate(-(startPosition + endPosition)/2);
+                    ctx.fillText(Math.round(PercentComplete*100) + "%" , 0, 0);            
+                    }
+                    ctx.restore();
+                    
+                    
+                    ctx.rotate((endPosition- startPosition) /2);
+                    ctx.moveTo(0,0);
+                    ctx.lineTo(300,0);
+                    ctx.stroke();
+                    
+                    ctx.restore();
+                   
+                    startPosition = endPosition;
+                    
+                   
+                }
+                
+                ctx.save();
+                ctx.strokeStyle = "white";
+                ctx.beginPath();
+                ctx.arc(0,0, 300, 0, Math.PI*2);
+                ctx.stroke();
+                ctx.restore();
+                
+                ctx.restore();
+                app.main.DisplayText(ctx);
+                
+            },            
+            Update: function(){               
+                app.main.dt = app.main.calculateDeltaTime();
+                if(app.main.idling){
+                    app.main.DisplayIdle();
+                }
+                else{
+                    app.main.DisplayData();     
+                }
+                app.main.animationID = requestAnimationFrame(app.main.Update);
+                
+            },
+            DisplayText: function(ctx){
+               
+                var GameArray = app.main.gameArray;
+                var colors =["#305D7A", "#5B6F4A", "#F8FFFF","#A9744A"];   
+                ctx.save();
+                ctx.translate(800, 20);
+                ctx.font ="16px Helvetica";
+                ctx.save();
+              for(var i=0; i<GameArray.length; i++){// Loop through every game, andthen actually display it.
+                    var stringToPrint = i+1 + ": ";
+                  if(GameArray[i].name == undefined){
+                      stringToPrint += "Private Game: data is limited ";
+                  }
+                  else{
+                    stringToPrint += GameArray[i].name + " \" ";
+                  }
+                    ctx.fillStyle = colors[i%4];
+                    
+                    ctx.fillText(stringToPrint,0 ,0);
+                    ctx.translate(0,20);
+                    stringToPrint = GameArray[i].TimePlayed + " minutes | ";
+                  if(GameArray[i].OutofAcheivements > 0){
+                        stringToPrint += Math.round(GameArray[i].CompletedAcheivements/GameArray[i].OutofAcheivements *100 )+ "% Achievements Done";
+                  }
+                  else{
+                      stringToPrint += "No achievements found ";
+                  }
+                    ctx.fillText(stringToPrint,0 ,0);
+                    ctx.translate(0,20);
+                    
+                }
+                ctx.restore();
+                ctx.restore();
+            },
+            calculateDeltaTime: function(){
+                var now,fps;
+                now = performance.now(); 
+                fps = 1000 / (now - app.main.lastTime);
+                fps = Math.max(12, Math.min(60, fps));
+                app.main.lastTime = now; 
+                app.main.currentTime += app.main.dt;
+                return 1/fps;
+            },   
+            calculateScore: function(){
+                var modifiedTotal= 0;
+                var topTwentyTotal =0;
+                app.main.gameArray.forEach(function(game){
+                    if(game.OutofAcheivements > 0 ){//Private games won't count
+                    modifiedTotal += game.TimePlayed * (game.CompletedAcheivements / game.OutofAcheivements);
+                    topTwentyTotal += parseInt(game.TimePlayed);                  
+                    }
+                });
+                
+                app.main.gamerScore = Math.round((modifiedTotal/topTwentyTotal)*100);    
+                 if(app.main.gamerScore.toString() == "NaN"){                  
+                     outputText = "No Score Found: Data Private";
+                    document.getElementById("dumpdata").innerHTML = outputText;
+                     return;
+                     
+                 }
+                var outputText= "Your Score is: " + app.main.gamerScore + "%:";
+                if(app.main.gamerScore > 90){
+                    outputText += " Determined Completionist";
+                } 
+                else if(app.main.gamerScore > 75){
+                     outputText += " HardCore Gaming Hobbyist";
+                } 
+                else if(app.main.gamerScore > 50){
+                     outputText += " Guide-Using Guru";
+                } 
+                 else if(app.main.gamerScore > 25){
+                     outputText += " Under-Achieving Animal";
+                } 
+                else if(app.main.gamerScore > 10){
+                     outputText += " Wasteful Waif";
+                } 
+                else{
+                    outputText += " You've got to be new here."
+                }
+                document.getElementById("dumpdata").innerHTML = outputText;
+            }
+        }
+	</script>
+    
+</head>
+<body>    
+    <header>
+    Gamer Rater: Rate your steam Library
+    </header>
+    <div id = "input">
+        Enter your 64 Bit Steam ID Here
+        <input id ='search' >      
+        <button id='fetch'>
+            JUDGE ME 
+        </button>
+    </div>
+     <div id = dumpdata>
+     </div>   
+     <canvas id="canvas" width="1200" height="800"></canvas>  
+    <p id="deutsch" class="hidden">
+        Deutsch Font
+    </p>
+    <p id="hansa" class="hidden">
+        Hansa Font
+    </p>
+    <p id="bitgoth" class="hidden">
+        BitGothic Font
+    </p>
+    <p id="bitserif" class="hidden">
+        BitSerif Font
+    </p>
+    <p id="lansbury" class="hidden">
+        Lansbury Font
+    </p>    
+    
+  
+    <footer>
+        <p>Joel Petritsch 2018</p>        
+    </footer>
+</body>
+    
+</html>
